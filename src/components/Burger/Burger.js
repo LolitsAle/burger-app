@@ -5,13 +5,26 @@ import classes from "./Burger.module.css";
 import BurgerIngredient from "./BurgerIngredients/BurgerIngredient";
 
 const burger = (props) => {
+  //convert objects to array
+  let transformedIngredients = Object.keys(props.ingredients)
+    .map((igKey) => {
+      return [...Array(props.ingredients[igKey])].map((_, i) => {
+        return <BurgerIngredient key={igKey + i} type={igKey} />;
+      });
+    })
+    .reduce((arr, el) => {
+      return arr.concat(el);
+    }, []);
+
+  if (transformedIngredients.length === 0) {
+    transformedIngredients = <p>Please start adding ingredients</p>;
+  }
+
   return (
     <div className={classes.Burger}>
-      <burgerIngredient type="bread-top" />
-      <burgerIngredient type="cheese" />
-      <burgerIngredient type="salad" />
-      <burgerIngredient type="meat" />
-      <burgerIngredient type="bread-bottom" />
+      <BurgerIngredient type="bread-top" />
+      {transformedIngredients}
+      <BurgerIngredient type="bread-bottom" />
     </div>
   );
 };
