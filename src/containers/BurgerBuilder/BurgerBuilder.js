@@ -1,4 +1,7 @@
 import React, { Component } from "react";
+import { connect } from "react-redux";
+
+import axios from "../../axios-orders";
 
 import Aux from "../../hoc/Auxilary";
 import Burger from "../../components/Burger/Burger";
@@ -6,31 +9,44 @@ import BuildControls from "../../components/Burger/BuildControls/BuildControls";
 
 import Modal from "../../components/UI/Modal/Modal";
 import OrderSummary from "../../components/Burger/OrderSumary/OrderSummary";
-
-const INGREDIENT_PRICE = {
-  salad: 0.5,
-  cheese: 0.4,
-  meat: 0.7,
-  bacon: 0.8,
-};
-
-// const INITIAL_PRICE = 1.0;
+import Spinner from "../../components/UI/Spinner/Spinner";
+import WithErrorHandler from "../../hoc/withErrorHandler/withErrorHandler";
 
 class Burgerbuilder extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      ingredients: {
-        salad: 0,
-        bacon: 0,
-        cheese: 0,
-        meat: 0,
-      },
-      totalPrice: 4,
-      purchaseable: false,
       purchasing: false,
+      loading: false,
+      error: false,
     };
   }
+
+  componentDidMount() {
+    axios
+      .get("https://compact-citizen-256308.firebaseio.com/ingredients.json")
+      .then((response) => {
+        this.props.updateIngredients(response.data);
+        this.updatePurchaseState(this.props.igdt);
+      })
+      .catch((err) => {
+        console.log(err);
+        this.setState({ error: true });
+        return;
+      });
+  }
+
+  // componentDidUpdate() {
+  //   if (this.props.igdt) {
+  //     const purchaseable = this.updatePurchaseState(this.props.igdt);
+  //     if (purchaseable === true) {
+  //       this.setState({ purchaseable: true });
+  //     }
+  //     if (purchaseable === false && this.state.purchaseable === true) {
+  //       this.setState({ purchaseable: false });
+  //     }
+  //   }
+  // }
 
   orderToggleHandler = () => {
     const state = this.state.purchasing;
@@ -46,61 +62,73 @@ class Burgerbuilder extends Component {
       .reduce((sum, el) => {
         return sum + el;
       }, 0);
-    this.setState({ purchaseable: sum > 0 });
+    return sum > 0;
   }
-
-  addIngredientHandler = (type) => {
-    const oldCount = this.state.ingredients[type];
-    const updatedCount = oldCount + 1;
-    const updatedIngredients = {
-      ...this.state.ingredients,
-    };
-    updatedIngredients[type] = updatedCount;
-
-    //update price
-    const oldPrice = this.state.totalPrice;
-    const newPrice = oldPrice + INGREDIENT_PRICE[type];
-
-    this.setState({ ingredients: updatedIngredients, totalPrice: newPrice });
-
-    this.updatePurchaseState(updatedIngredients);
-  };
-
-  removeIngredientHandler = (type) => {
-    const oldCount = this.state.ingredients[type];
-    if (oldCount < 0) {
-      return;
-    }
-    const updatedCount = oldCount - 1;
-    const updatedIngredients = {
-      ...this.state.ingredients,
-    };
-    updatedIngredients[type] = updatedCount;
-
-    //update price
-    const oldPrice = this.state.totalPrice;
-    const newPrice = oldPrice - INGREDIENT_PRICE[type];
-
-    this.setState({ ingredients: updatedIngredients, totalPrice: newPrice });
-
-    this.updatePurchaseState(updatedIngredients);
-  };
 
   modalClosedHandler = () => {
     this.setState({ purchasing: false });
   };
 
   purchaseContinueHandler = () => {
-    alert("Continue purchased");
+    // const queryParams = [];
+    // for (let i in this.state.ingredients) {
+    //   queryParams.push(
+    //     encodeURIComponent(i) +
+    //       "=" +
+    //       encodeURIComponent(this.state.ingredients[i])
+    //   );
+    // }
+    // queryParams.push("price=" + this.state.totalPrice);
+    // const queryString = queryParams.join("&");
+    // console.log(queryParams);
+    this.props.history.push({
+      pathname: "/checkout",
+    });
   };
 
   render() {
+    // console.log(this.props.igdt);
+
     const disabledInfo = {
-      ...this.state.ingredients,
+      ...this.props.igdt,
     };
 
     for (let key in disabledInfo) {
       disabledInfo[key] = disabledInfo[key] <= 0;
+    }
+
+    let orderSumary = null;
+
+    let burger = this.state.error ? (
+      <p>Ingredient cannot be loaded</p>
+    ) : (
+      <Spinner />
+    );
+
+    if (this.props.igdt) {
+      orderSumary = (
+        <OrderSummary
+          price={this.props.prc}
+          ingredients={this.props.igdt}
+          purchaseCancel={this.modalClosedHandler}
+          purchaseContinue={this.purchaseContinueHandler}
+        />
+      );
+      burger = (
+        <Aux>
+          <Burger ingredients={this.props.igdt}></Burger>
+          <BuildControls
+            disabled={disabledInfo}
+            price={this.props.prc}
+            purchaseable={this.updatePurchaseState(this.props.igdt)}
+            ordering={this.orderToggleHandler}
+          />
+        </Aux>
+      );
+    }
+
+    if (this.state.loading) {
+      orderSumary = <Spinner />;
     }
 
     return (
@@ -109,25 +137,30 @@ class Burgerbuilder extends Component {
           show={this.state.purchasing}
           modalClosed={this.modalClosedHandler}
         >
-          <OrderSummary
-            price={this.state.totalPrice}
-            ingredients={this.state.ingredients}
-            purchaseCancel={this.modalClosedHandler}
-            purchaseContinue={this.purchaseContinueHandler}
-          />
+          {orderSumary}
         </Modal>
-        <Burger ingredients={this.state.ingredients}></Burger>
-        <BuildControls
-          ingredientAdd={this.addIngredientHandler}
-          ingredientRemove={this.removeIngredientHandler}
-          disabled={disabledInfo}
-          price={this.state.totalPrice}
-          purchaseable={this.state.purchaseable}
-          ordering={this.orderToggleHandler}
-        />
+        {burger}
       </Aux>
     );
   }
 }
 
-export default Burgerbuilder;
+const mapStateToProps = (state) => {
+  return {
+    igdt: state.ingredients,
+    prc: state.totalPrice,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    updateIngredients: (ingredients) => {
+      return dispatch({ type: "UPDATE_INGREDIENT", data: ingredients });
+    },
+  };
+};
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(WithErrorHandler(Burgerbuilder, axios));

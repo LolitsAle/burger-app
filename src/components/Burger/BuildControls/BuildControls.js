@@ -3,6 +3,8 @@ import React from "react";
 import classes from "./BuildControls.module.css";
 import BuildControl from "./BuildControl/BuildControl";
 
+import { connect } from "react-redux";
+
 const controls = [
   { label: "Salad", type: "salad" },
   { label: "Bacon", type: "bacon" },
@@ -34,4 +36,13 @@ const buildControls = (props) => (
   </div>
 );
 
-export default buildControls;
+const mapDispatchToProps = (dispatch) => {
+  return {
+    ingredientAdd: (value) =>
+      dispatch({ type: "ADD_INGREDIENT", ingredientName: value }),
+    ingredientRemove: (value) =>
+      dispatch({ type: "REMOVE_INGREDIENT", ingredientName: value }),
+  };
+};
+
+export default connect(null, mapDispatchToProps)(buildControls);
