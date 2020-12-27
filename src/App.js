@@ -19,7 +19,7 @@ class App extends Component {
   //     this.setState({ show: false });
   //   }, 5000);
   // }
-
+  // ..
   render() {
     return (
       <BrowserRouter>
